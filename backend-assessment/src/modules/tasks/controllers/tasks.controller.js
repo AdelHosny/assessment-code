@@ -9,7 +9,7 @@ async function getTask(req, res) {
   const task = await tasksService.getTaskById(req.params.id);
   res.status(200).json({ data: task });
 }
-
+// remove duplicate function definition for createTask and patchTask, keeping the ones that use the validator functions.
 // async function createTask(req, res) {
   
 //   const payload = req.body || {};
