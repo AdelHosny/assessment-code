@@ -1,9 +1,14 @@
-const path = require("node:path");
-const { readJsonArray, updateJsonArray } = require('../../../utils/jsonStore');
-const { createId } = require("../../../utils/id");
-const HttpError = require("../../../utils/httpError");
+const path = require('node:path');
 
-const TASKS_FILE_PATH = path.join(process.cwd(), "data", "tasks.json");
+const { createId } = require('../../../utils/id');
+const { readJsonArray, updateJsonArray } = require('../../../utils/jsonStore');
+const HttpError = require('../../../utils/httpError');
+
+const TASKS_FILE_PATH = path.join(process.cwd(), 'data', 'tasks.json');
+
+function deriveCompleted(status) {
+  return status === 'done';
+}
 
 function buildTaskRecord(payload) {
   const now = new Date().toISOString();
@@ -11,7 +16,8 @@ function buildTaskRecord(payload) {
   return {
     id: createId(),
     title: payload.title,
-    completed: payload.completed,
+    status: payload.status,
+    completed: deriveCompleted(payload.status),
     createdAt: now,
     updatedAt: now,
   };
@@ -26,14 +32,13 @@ async function getTaskById(taskId) {
   const task = tasks.find((item) => item.id === taskId);
 
   if (!task) {
-    throw new HttpError(404, "Task not found.");
+    throw new HttpError(404, 'Task not found.');
   }
 
   return task;
 }
 
 async function createTask(payload) {
-  // ...validation...
   return updateJsonArray(TASKS_FILE_PATH, async (tasks) => {
     const newTask = buildTaskRecord(payload);
     tasks.push(newTask);
@@ -42,14 +47,24 @@ async function createTask(payload) {
 }
 
 async function updateTask(taskId, updates) {
-  // ...validation...
   return updateJsonArray(TASKS_FILE_PATH, async (tasks) => {
     const taskIndex = tasks.findIndex((item) => item.id === taskId);
+
     if (taskIndex === -1) {
       throw new HttpError(404, 'Task not found.');
     }
+
     const existingTask = tasks[taskIndex];
-    const updatedTask = { ...existingTask, ...updates, updatedAt: new Date().toISOString() };
+    const nextStatus = updates.status ?? existingTask.status;
+
+    const updatedTask = {
+      ...existingTask,
+      ...updates,
+      status: nextStatus,
+      completed: deriveCompleted(nextStatus),
+      updatedAt: new Date().toISOString(),
+    };
+
     tasks[taskIndex] = updatedTask;
     return { result: updatedTask, next: tasks };
   });
@@ -58,9 +73,11 @@ async function updateTask(taskId, updates) {
 async function deleteTask(taskId) {
   return updateJsonArray(TASKS_FILE_PATH, async (tasks) => {
     const taskIndex = tasks.findIndex((item) => item.id === taskId);
+
     if (taskIndex === -1) {
       throw new HttpError(404, 'Task not found.');
     }
+
     const [removedTask] = tasks.splice(taskIndex, 1);
     return { result: removedTask, next: tasks };
   });

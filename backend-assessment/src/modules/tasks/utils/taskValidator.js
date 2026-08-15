@@ -1,6 +1,7 @@
 const HttpError = require('../../../utils/httpError');
 
-const ALLOWED_FIELDS = ['title', 'completed'];
+const ALLOWED_FIELDS = ['title', 'status'];
+const STATUS_VALUES = ['todo', 'in-progress', 'done'];
 
 function validatePayloadShape(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -37,16 +38,16 @@ function normalizeTitleIfPresent(payload, normalized) {
   normalized.title = trimmedTitle;
 }
 
-function normalizeCompletedIfPresent(payload, normalized) {
-  if (!Object.hasOwn(payload, 'completed')) {
+function normalizeStatusIfPresent(payload, normalized) {
+  if (!Object.hasOwn(payload, 'status')) {
     return;
   }
 
-  if (typeof payload.completed !== 'boolean') {
-    throw new HttpError(400, '"completed" must be a boolean.');
+  if (typeof payload.status !== 'string' || !STATUS_VALUES.includes(payload.status)) {
+    throw new HttpError(400, `"status" must be one of: ${STATUS_VALUES.join(', ')}.`);
   }
 
-  normalized.completed = payload.completed;
+  normalized.status = payload.status;
 }
 
 function validateCreateTask(payload) {
@@ -55,14 +56,14 @@ function validateCreateTask(payload) {
 
   const normalized = {};
   normalizeTitleIfPresent(payload, normalized);
-  normalizeCompletedIfPresent(payload, normalized);
+  normalizeStatusIfPresent(payload, normalized);
 
   if (!Object.hasOwn(normalized, 'title')) {
     throw new HttpError(400, '"title" is required.');
   }
 
-  if (!Object.hasOwn(normalized, 'completed')) {
-    normalized.completed = false;
+  if (!Object.hasOwn(normalized, 'status')) {
+    normalized.status = 'todo';
   }
 
   return normalized;
@@ -74,7 +75,7 @@ function validateUpdateTask(payload) {
 
   const normalized = {};
   normalizeTitleIfPresent(payload, normalized);
-  normalizeCompletedIfPresent(payload, normalized);
+  normalizeStatusIfPresent(payload, normalized);
 
   if (Object.keys(normalized).length === 0) {
     throw new HttpError(400, 'Provide at least one updatable field.');
@@ -86,4 +87,5 @@ function validateUpdateTask(payload) {
 module.exports = {
   validateCreateTask,
   validateUpdateTask,
+  STATUS_VALUES,
 };
